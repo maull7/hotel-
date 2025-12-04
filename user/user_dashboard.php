@@ -7,6 +7,32 @@ require_login('user');
 $userId = (int) current_user_id();
 $userName = current_user_name();
 $userEmail = current_user_email();
+$bankTransferNumber = '987654321009';
+$bankTransferHolder = 'HotelMantap Payment';
+
+function generate_barcode_svg(string $code): string
+{
+    $sanitized = preg_replace('/[^A-Z0-9]/i', '', $code);
+    $xPosition = 12;
+    $bars = [];
+
+    foreach (str_split($sanitized ?: '0000') as $char) {
+        $digit = is_numeric($char) ? (int) $char : (ord($char) % 10);
+        $width = 2 + ($digit % 3);
+        $height = 80 + (($digit % 2) * 10);
+        $bars[] = "<rect x=\"{$xPosition}\" y=\"10\" width=\"{$width}\" height=\"{$height}\" fill=\"#000\" />";
+        $xPosition += $width + 2;
+    }
+
+    $totalWidth = max(200, $xPosition + 10);
+
+    return "<svg aria-label=\"Barcode {$sanitized}\" viewBox=\"0 0 {$totalWidth} 120\" role=\"img\">" .
+        implode('', $bars) .
+        "<text x=\"10\" y=\"115\" font-family=\"monospace\" font-size=\"14\">{$sanitized}</text>" .
+        "</svg>";
+}
+
+$bankTransferBarcode = generate_barcode_svg($bankTransferNumber);
 
 function fetch_rooms(mysqli $conn): array
 {
@@ -98,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($paymentMethod === 'midtrans') {
             $alertText .= " | Metode: Midtrans (Ref: {$paymentReference}). Simulasikan pembayaran lewat Snap/Bank Redirect.";
         } else {
-            $alertText .= " | Metode: Transfer Bank. Bukti pembayaran siap diverifikasi.";
+            $alertText .= " | Metode: Transfer Bank. Gunakan nomor ATM/VA {$bankTransferNumber} dan unggah bukti pembayaran.";
         }
 
         $alert = ['type' => 'success', 'text' => $alertText];
@@ -120,6 +146,22 @@ $bookings = $bookingResult ? $bookingResult->fetch_all(MYSQLI_ASSOC) : [];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Tamu</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .barcode-wrapper svg {
+            max-width: 260px;
+            height: auto;
+            background: #fff;
+            padding: 10px 12px;
+            border: 1px dashed #ced4da;
+            border-radius: 10px;
+            box-shadow: inset 0 0 0 1px #f8f9fa;
+        }
+        .bank-transfer-box {
+            background: #f8fafc;
+            border: 1px solid #dce2ea;
+            border-radius: 12px;
+        }
+    </style>
 </head>
 <body class="bg-light">
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -196,6 +238,25 @@ $bookings = $bookingResult ? $bookingResult->fetch_all(MYSQLI_ASSOC) : [];
                             <label class="form-label">Bukti Transfer (jpg/png/pdf)</label>
                             <input type="file" name="payment_proof" class="form-control" accept="image/*,.pdf">
                             <small class="text-muted">Wajib diisi jika memilih transfer bank.</small>
+                        </div>
+                        <div class="col-12" id="bank_transfer_info" style="display:none;">
+                            <div class="p-3 bank-transfer-box">
+                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                                    <div>
+                                        <h6 class="mb-1">Transfer Bank</h6>
+                                        <p class="mb-2 small text-muted">Scan barcode atau gunakan nomor ATM/Virtual Account di bawah ini.</p>
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <span class="badge text-bg-primary">ATM/VA</span>
+                                            <span class="fw-bold fs-5"><?= rtrim(chunk_split($bankTransferNumber, 4, ' ')); ?></span>
+                                        </div>
+                                        <small class="text-muted">Atas nama <?= htmlspecialchars($bankTransferHolder); ?></small>
+                                    </div>
+                                    <div class="barcode-wrapper text-center flex-grow-1">
+                                        <?= $bankTransferBarcode; ?>
+                                        <div class="small text-muted mt-2">Barcode otomatis tampil saat pilih transfer bank.</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-12 d-flex justify-content-between align-items-center">
                             <div>
@@ -315,6 +376,7 @@ const guestsInput = document.querySelector('input[name="guests"]');
 const totalInfo = document.getElementById('total_info');
 const paymentMethod = document.getElementById('payment_method');
 const proofWrapper = document.getElementById('proof_wrapper');
+const bankTransferInfo = document.getElementById('bank_transfer_info');
 
 function updateTotal() {
     const option = roomSelect.selectedOptions[0];
@@ -336,8 +398,13 @@ checkin.addEventListener('change', updateTotal);
 checkout.addEventListener('change', updateTotal);
 guestsInput.addEventListener('input', updateTotal);
 paymentMethod.addEventListener('change', () => {
-    proofWrapper.style.display = paymentMethod.value === 'transfer_bank' ? 'block' : 'none';
+    const isTransfer = paymentMethod.value === 'transfer_bank';
+    proofWrapper.style.display = isTransfer ? 'block' : 'none';
+    bankTransferInfo.style.display = isTransfer ? 'block' : 'none';
 });
+
+// Initialize visibility on first load
+paymentMethod.dispatchEvent(new Event('change'));
 </script>
 </body>
 </html>
