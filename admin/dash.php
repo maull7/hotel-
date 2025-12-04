@@ -1,289 +1,140 @@
 <?php
 require '../db.php';
-data($koneksi);
-function data($koneksi) {
-    $result = $koneksi->query("SELECT * FROM pemesanan ORDER BY id DESC");
+ensure_schema($koneksi);
+
+$totalRooms = $koneksi->query("SELECT COUNT(*) AS total FROM rooms")->fetch_assoc()['total'] ?? 0;
+$availableRooms = $koneksi->query("SELECT COUNT(*) AS total FROM rooms WHERE status = 'tersedia'")->fetch_assoc()['total'] ?? 0;
+$totalBookings = $koneksi->query("SELECT COUNT(*) AS total FROM bookings")->fetch_assoc()['total'] ?? 0;
+$pendingPayments = $koneksi->query("SELECT COUNT(*) AS total FROM bookings WHERE payment_status IN ('menunggu','verifikasi')")->fetch_assoc()['total'] ?? 0;
+$incomeResult = $koneksi->query("SELECT SUM(total_price) AS total FROM bookings WHERE payment_status = 'dibayar'");
+$totalIncome = $incomeResult && ($row = $incomeResult->fetch_assoc()) ? (int)$row['total'] : 0;
+
+$bookings = $koneksi->query(
+    "SELECT b.*, r.name AS room_name, r.type AS room_type FROM bookings b
+     JOIN rooms r ON r.id = b.room_id
+     ORDER BY b.created_at DESC LIMIT 8"
+);
 ?>
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Pemesanan Hotel</title>
-     <link rel="stylesheet" href="styledasboard.css">
-  <style>
-    body {
-      font-family: "Poppins", sans-serif;
-      background: #f7f7f7;
-    }
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 15px 30px;
-      background: #6c5ce7;
-      color: white;
-    }
-    .user-box {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .user-box img {
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-    }
-    .user-box a {
-      color: white;
-      text-decoration: none;
-      font-weight: bold;
-      padding: 5px 10px;
-      border: 1px solid white;
-      border-radius: 5px;
-    }
-    .container {
-      padding: 20px 30px;
-    }
-
-    /* Cards */
-    .cards {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      margin-bottom: 30px;
-    }
-    .card {
-      flex: 1 1 150px;
-      padding: 20px;
-      background: #fff;
-      border-radius: 15px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      text-align: center;
-    }
-    .card .num {
-      font-size: 24px;
-      font-weight: bold;
-      margin-top: 10px;
-    }
-    .card .green {
-      color: green;
-    }
-
-    /* Layout rows */
-    .row {
-      display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
-      margin-bottom: 30px;
-    }
-    .chart {
-      flex: 1 1 400px;
-      background: #fff;
-      padding: 20px;
-      border-radius: 15px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-
-    /* Table Section */
-    .table-section {
-      background: #fff;
-      padding: 20px;
-      border-radius: 15px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      margin-bottom: 30px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-    }
-    table th, table td {
-      padding: 10px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
-    }
-
-    .checkin { color: green; font-weight: bold; }
-    .checkout { color: red; font-weight: bold; }
-    .resv { color: orange; font-weight: bold; }
-  </style>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; background: #f4f6f9; }
-        .sidebar { width: 240px; background: #1f2937; color: white; position: fixed; top: 0; bottom: 0; padding: 20px; }
-        .sidebar h2 { margin-top: 0; text-align: center; }
-        .sidebar a { display: block; color: #e5e7eb; padding: 10px; text-decoration: none; border-radius: 6px; }
-        .sidebar a:hover { background: #374151; }
-        .main { margin-left: 260px; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        table th, table td { border: 1px solid #ddd; padding: 10px; }
-        table th { background: #e5e7eb; }
-        .btn { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; }
-        .edit { background: #3b82f6; color: white; }
-        .hapus { background: #ef4444; color: white; }
-        .tambah { background: #10b981; color: white; padding: 8px 14px; }
-    </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-    <div class="sidebar">
-        <h2>Admin Hotel</h2>
-        <a href="dash.php">Dashboard</a>
-        <a href="data_pemesanan.php">Data Pemesanan</a>
-        <a href="data_kamar.php">Data Kamar</a>
-        <a href="data_pengguna.php">Data Pengguna</a>
-        <a href="../logout.php">Logout</a>
+<body class="bg-light">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">HotelMantap Admin</a>
+        <div class="d-flex gap-2">
+            <a href="data_pemesanan.php" class="btn btn-outline-light btn-sm">Pemesanan</a>
+            <a href="data_kamar.php" class="btn btn-outline-light btn-sm">Kamar</a>
+            <a href="../logout.php" class="btn btn-danger btn-sm">Logout</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container py-4">
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <p class="text-muted mb-1">Total Kamar</p>
+                    <h4 class="mb-0 fw-bold"><?= $totalRooms; ?></h4>
+                    <small class="text-success"><?= $availableRooms; ?> tersedia</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <p class="text-muted mb-1">Pemesanan</p>
+                    <h4 class="mb-0 fw-bold"><?= $totalBookings; ?></h4>
+                    <small class="text-muted">tercatat di sistem</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <p class="text-muted mb-1">Pembayaran Pending</p>
+                    <h4 class="mb-0 fw-bold"><?= $pendingPayments; ?></h4>
+                    <small class="text-warning">Midtrans / Bank</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <p class="text-muted mb-1">Total Lunas</p>
+                    <h4 class="mb-0 fw-bold">Rp <?= number_format($totalIncome, 0, ',', '.'); ?></h4>
+                    <small class="text-success">Pembayaran selesai</small>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="main">
-       
-<div class="container">
-
-  <!-- CARD SECTION -->
-  <div class="cards">
-    <div class="card">
-      <h4>Total Kamar</h4>
-      <p class="num">120</p>
-    </div>
-    <div class="card">
-      <h4>Kamar Terisi</h4>
-      <p class="num">85</p>
-    </div>
-    <div class="card">
-      <h4>Kamar Tersedia</h4>
-      <p class="num green">35</p>
-    </div>
-    <div class="card">
-      <h4>Check-in Hari Ini</h4>
-      <p class="num">18</p>
-    </div>
-    <div class="card">
-      <h4>Check-out Hari Ini</h4>
-      <p class="num">10</p>
-    </div>
-    <div class="card">
-      <h4>Reservasi Aktif</h4>
-      <p class="num">42</p>
-    </div>
-  </div>
-
-  <!-- CHART ROW -->
-  <div class="row">
-    <div class="chart">
-      <h3>Grafik Okupansi Mingguan</h3>
-      <canvas id="chart1"></canvas>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Monitoring Pembayaran</h5>
+                <small class="text-muted">Ringkasan Midtrans dan Transfer Bank</small>
+            </div>
+            <a href="data_pemesanan.php" class="btn btn-primary btn-sm">Kelola Pemesanan</a>
+        </div>
     </div>
 
-    <div class="chart">
-      <h3>Pendapatan Bulanan</h3>
-      <canvas id="chart2"></canvas>
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Pemesanan Terbaru</h5>
+                <a href="data_pemesanan.php" class="btn btn-outline-secondary btn-sm">Lihat semua</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tamu</th>
+                            <th>Kamar</th>
+                            <th>Jadwal</th>
+                            <th>Metode</th>
+                            <th>Status</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if ($bookings && $bookings->num_rows > 0): ?>
+                            <?php while ($row = $bookings->fetch_assoc()): ?>
+                                <?php
+                                    $badgeClass = match ($row['payment_status']) {
+                                        'dibayar' => 'success',
+                                        'verifikasi' => 'warning',
+                                        'gagal' => 'danger',
+                                        default => 'secondary',
+                                    };
+                                ?>
+                                <tr>
+                                    <td>
+                                        <strong><?= htmlspecialchars($row['guest_name']); ?></strong><br>
+                                        <small class="text-muted"><?= htmlspecialchars($row['email']); ?></small>
+                                    </td>
+                                    <td><?= htmlspecialchars($row['room_name']); ?> (<?= htmlspecialchars($row['room_type']); ?>)</td>
+                                    <td><?= htmlspecialchars($row['checkin']); ?> - <?= htmlspecialchars($row['checkout']); ?></td>
+                                    <td class="text-capitalize"><?= str_replace('_',' ', htmlspecialchars($row['payment_method'])); ?></td>
+                                    <td><span class="badge text-bg-<?= $badgeClass; ?> text-uppercase"><?= htmlspecialchars($row['payment_status']); ?></span></td>
+                                    <td>Rp <?= number_format($row['total_price'], 0, ',', '.'); ?></td>
+                                </tr>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <tr><td colspan="6" class="text-center text-muted">Belum ada data.</td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
-  </div>
-
-  <!-- AKTIVITAS TERBARU -->
-  <div class="table-section">
-    <h3>Aktivitas Terbaru</h3>
-    <table>
-      <tr>
-        <th>Tamu</th>
-        <th>Jenis</th>
-        <th>Kamar</th>
-        <th>Waktu</th>
-      </tr>
-      <tr>
-        <td>Aulia Putri</td>
-        <td class="checkin">Check-in</td>
-        <td>Deluxe 203</td>
-        <td>10:20</td>
-      </tr>
-      <tr>
-        <td>Rizki Ahmad</td>
-        <td class="checkout">Check-out</td>
-        <td>Superior 102</td>
-        <td>09:40</td>
-      </tr>
-      <tr>
-        <td>Wulan Sari</td>
-        <td class="resv">Reservasi</td>
-        <td>Suite 501</td>
-        <td>08:15</td>
-      </tr>
-    </table>
-  </div>
-
-  <!-- REKAPAN BULANAN -->
-  <div class="table-section">
-    <h3>Rekapan Per Bulan</h3>
-    <table>
-      <tr>
-        <th>Bulan</th>
-        <th>Total Check-in</th>
-        <th>Total Check-out</th>
-        <th>Total Reservasi</th>
-        <th>Okupansi Rata-rata</th>
-      </tr>
-      <tr>
-        <td>Januari</td>
-        <td>320</td>
-        <td>300</td>
-        <td>150</td>
-        <td>78%</td>
-      </tr>
-      <tr>
-        <td>Februari</td>
-        <td>280</td>
-        <td>270</td>
-        <td>130</td>
-        <td>74%</td>
-      </tr>
-      <tr>
-        <td>Maret</td>
-        <td>350</td>
-        <td>340</td>
-        <td>160</td>
-        <td>81%</td>
-      </tr>
-    </table>
-  </div>
-
-  <!-- PENDAPATAN BULANAN -->
-  <div class="table-section">
-    <h3>Pendapatan Per Bulan</h3>
-    <table>
-        <tr>
-            <th>Bulan</th>
-            <th>Pendapatan Kamar</th>
-            <th>Pendapatan Lain-lain</th>
-            <th>Total Pendapatan</th>
-        </tr>
-        <tr>
-            <td>Januari</td>
-            <td>Rp 125.000.000</td>
-            <td>Rp 18.500.000</td>
-            <td><b>Rp 143.500.000</b></td>
-        </tr>
-        <tr>
-            <td>Februari</td>
-            <td>Rp 110.000.000</td>
-            <td>Rp 16.200.000</td>
-            <td><b>Rp 126.200.000</b></td>
-        </tr>
-        <tr>
-            <td>Maret</td>
-            <td>Rp 132.000.000</td>
-            <td>Rp 20.100.000</td>
-            <td><b>Rp 152.100.000</b></td>
-        </tr>
-    </table>
-  </div>
-
 </div>
-
-    </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
-<?php } ?>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="dashboard.js"></script>

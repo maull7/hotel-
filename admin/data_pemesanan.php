@@ -1,127 +1,117 @@
 <?php
-// Koneksi database
-$conn = new mysqli("localhost", "root", "", "hotelmantap");
-if ($conn->connect_error) {
-    die("Koneksi gagal: " . $conn->connect_error);
+require '../db.php';
+ensure_schema($koneksi);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['booking_id'])) {
+    $bookingId = (int)$_POST['booking_id'];
+    $status = $_POST['payment_status'] ?? 'menunggu';
+    $stmt = $koneksi->prepare("UPDATE bookings SET payment_status = ? WHERE id = ?");
+    $stmt->bind_param('si', $status, $bookingId);
+    $stmt->execute();
+    $stmt->close();
 }
 
-// Mengambil data pemesanan
-$result = $conn->query("SELECT * FROM data_pemesanan ORDER BY id DESC");
+$result = $koneksi->query(
+    "SELECT b.*, r.name AS room_name, r.type AS room_type FROM bookings b
+     JOIN rooms r ON r.id = b.room_id
+     ORDER BY b.created_at DESC"
+);
 ?>
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Data Pemesanan</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; background: #f4f6f9; }
-        .sidebar { width: 240px; background: #1f2937; color: white; position: fixed; top: 0; bottom: 0; padding: 20px; }
-        .sidebar h2 { text-align: center; margin-top: 0; }
-        .sidebar a { display: block; color: #e5e7eb; padding: 10px; text-decoration: none; border-radius: 6px; }
-        .sidebar a:hover { background: #374151; }
-
-        .main { margin-left: 260px; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        table th, table td { border: 1px solid #ddd; padding: 10px; }
-        table th { background: #e5e7eb; }
-
-        .btn { padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; }
-        .tambah { background: #10b981; color: white; margin-bottom: 10px; }
-        .edit { background: #3b82f6; color: white; }
-        .hapus { background: #ef4444; color: white; }
-    </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Data Pemesanan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-
-    <div class="sidebar">
-        <h2>Admin Hotel</h2>
-        <a href="#">Dashboard</a>
-        <a href="data_pemesanan.php">Data Pemesanan</a>
-        <a href="data_kamar.php">Data Kamar</a>
-        <a href="#">Data Pengguna</a>
-        <a href="dash.php">kembali</a>
-    </div>
-
-    <head>
-    <title>Data Kamar</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
-</head>
-<body class="bg-light py-4">
-
-<style>
-    .content {
-        margin-left: 250px; /* Agar tidak nutup sidebar */
-        padding: 20px;
-    }
-</style>
-
-<div class="content">
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h3 class="m-0">Data Pemesanan</h3>
+<body class="bg-light">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="dash.php">HotelMantap Admin</a>
+        <div class="d-flex gap-2">
+            <a href="dash.php" class="btn btn-outline-light btn-sm">Dashboard</a>
+            <a href="data_kamar.php" class="btn btn-outline-light btn-sm">Kamar</a>
+            <a href="../logout.php" class="btn btn-danger btn-sm">Logout</a>
         </div>
+    </div>
+</nav>
 
+<div class="container py-4">
+    <div class="card shadow-sm">
         <div class="card-body">
-            <a href="tambah_pm.php" class="btn btn-success mb-3">+ Tambah Pemesanan</a>
-
-            <table class="table table-bordered table-striped">
-                <thead class="table-dark">
-                    <tr>
-                        <th>ID</th>
-                        <th>Nama Tamu</th>
-                        <th>kamar</th>
-                        <th>Check-in</Check-in></th>
-                        <th>Check-out</th>
-                        <th>Status</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                <?php
-                $no = 1;
-                $result = mysqli_query($conn, "SELECT * FROM data_pemesanan ORDER BY id DESC");
-                while ($row = mysqli_fetch_assoc($result)) {
-                ?>
-                    <tr>
-                        <td><?= $row['id'] ?></td>
-                        <td><?= $row['nama'] ?></td>
-                        <td><?= $row['kamar'] ?></td>
-                        <td><?= $row['checkin'] ?></td>
-                        <td><?= $row['checkout'] ?></td>
-
-                        <td>
-                            <?php if ($row['status'] == 'baru') { ?>
-                                <span class="badge bg-primary">Baru</span>
-                            <?php } elseif ($row['status'] == 'checkin') { ?>
-                                <span class="badge bg-warning text-dark">Check-in</span>
-                            <?php } elseif ($row['status'] == 'selesai') { ?>
-                                <span class="badge bg-success">Selesai</span>
-                            <?php } else { ?>
-                                <span class="badge bg-secondary">Tidak Diketahui</span>
-                            <?php } ?>
-
-                        </td>
-
-                        <td>
-                           <a href="edit.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-primary">Edit</a>
-                            <a href="hapus.php?id=<?= $row['id'] ?>" 
-                               onclick="return confirm('Hapus data ini?')"
-                               class="btn btn-sm btn-danger">
-                                Hapus
-                            </a>
-                        </td>
-                    </tr>
-                <?php } ?>
-                </tbody>
-
-            </table>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="mb-0">Data Pemesanan</h5>
+                    <small class="text-muted">Kelola status pembayaran Midtrans & Transfer Bank</small>
+                </div>
+                <span class="badge text-bg-secondary"><?= $result?->num_rows ?? 0; ?> transaksi</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tamu</th>
+                            <th>Kamar</th>
+                            <th>Jadwal</th>
+                            <th>Metode</th>
+                            <th>Bukti</th>
+                            <th>Status</th>
+                            <th>Total</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if ($result && $result->num_rows > 0): ?>
+                            <?php while ($row = $result->fetch_assoc()): ?>
+                                <?php
+                                    $badgeClass = match ($row['payment_status']) {
+                                        'dibayar' => 'success',
+                                        'verifikasi' => 'warning',
+                                        'gagal' => 'danger',
+                                        default => 'secondary',
+                                    };
+                                ?>
+                                <tr>
+                                    <td>
+                                        <strong><?= htmlspecialchars($row['guest_name']); ?></strong><br>
+                                        <small class="text-muted">Telp: <?= htmlspecialchars($row['phone']); ?></small>
+                                    </td>
+                                    <td><?= htmlspecialchars($row['room_name']); ?> (<?= htmlspecialchars($row['room_type']); ?>)</td>
+                                    <td><?= htmlspecialchars($row['checkin']); ?> - <?= htmlspecialchars($row['checkout']); ?></td>
+                                    <td class="text-capitalize"><?= str_replace('_',' ', htmlspecialchars($row['payment_method'])); ?></td>
+                                    <td>
+                                        <?php if ($row['payment_proof']): ?>
+                                            <a href="../<?= htmlspecialchars($row['payment_proof']); ?>" target="_blank" class="btn btn-sm btn-outline-secondary">Lihat</a>
+                                        <?php else: ?>
+                                            <span class="text-muted">-</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><span class="badge text-bg-<?= $badgeClass; ?> text-uppercase"><?= htmlspecialchars($row['payment_status']); ?></span></td>
+                                    <td>Rp <?= number_format($row['total_price'], 0, ',', '.'); ?></td>
+                                    <td>
+                                        <form method="post" class="d-flex gap-2 align-items-center">
+                                            <input type="hidden" name="booking_id" value="<?= $row['id']; ?>">
+                                            <select name="payment_status" class="form-select form-select-sm">
+                                                <option value="menunggu" <?= $row['payment_status']==='menunggu'?'selected':''; ?>>Menunggu</option>
+                                                <option value="verifikasi" <?= $row['payment_status']==='verifikasi'?'selected':''; ?>>Verifikasi</option>
+                                                <option value="dibayar" <?= $row['payment_status']==='dibayar'?'selected':''; ?>>Dibayar</option>
+                                                <option value="gagal" <?= $row['payment_status']==='gagal'?'selected':''; ?>>Gagal</option>
+                                            </select>
+                                            <button class="btn btn-primary btn-sm">Update</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                        <?php else: ?>
+                            <tr><td colspan="8" class="text-center text-muted">Belum ada data.</td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
