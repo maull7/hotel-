@@ -13,6 +13,17 @@ if (!$koneksi) {
 function ensure_schema(mysqli $conn): void
 {
     $conn->query(
+        "CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nama VARCHAR(100) NOT NULL,
+            email VARCHAR(120) NOT NULL UNIQUE,
+            password VARCHAR(255) NOT NULL,
+            role ENUM('admin','user') DEFAULT 'user',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+
+    $conn->query(
         "CREATE TABLE IF NOT EXISTS rooms (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
@@ -42,6 +53,20 @@ function ensure_schema(mysqli $conn): void
             FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
+
+    $uploadDir = __DIR__ . '/uploads/payments';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0777, true);
+    }
+
+    $adminCheck = $conn->query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
+    if ($adminCheck && $adminCheck->num_rows === 0) {
+        $defaultPassword = password_hash('admin123', PASSWORD_DEFAULT);
+        $stmt = $conn->prepare("INSERT INTO users (nama, email, password, role) VALUES ('Administrator', 'admin@hotelmantap.id', ?, 'admin')");
+        $stmt->bind_param('s', $defaultPassword);
+        $stmt->execute();
+        $stmt->close();
+    }
 
     $existingRooms = $conn->query("SELECT COUNT(*) AS total FROM rooms");
     if ($existingRooms && ($row = $existingRooms->fetch_assoc()) && (int)$row['total'] === 0) {

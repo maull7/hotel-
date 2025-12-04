@@ -55,7 +55,7 @@ $result = $koneksi->query(
                             <th>Kamar</th>
                             <th>Jadwal</th>
                             <th>Metode</th>
-                            <th>Bukti</th>
+                            <th>Referensi/Bukti</th>
                             <th>Status</th>
                             <th>Total</th>
                             <th>Aksi</th>
@@ -81,8 +81,10 @@ $result = $koneksi->query(
                                     <td><?= htmlspecialchars($row['checkin']); ?> - <?= htmlspecialchars($row['checkout']); ?></td>
                                     <td class="text-capitalize"><?= str_replace('_',' ', htmlspecialchars($row['payment_method'])); ?></td>
                                     <td>
-                                        <?php if ($row['payment_proof']): ?>
-                                            <a href="../<?= htmlspecialchars($row['payment_proof']); ?>" target="_blank" class="btn btn-sm btn-outline-secondary">Lihat</a>
+                                        <?php if ($row['payment_reference']): ?>
+                                            <span class="badge text-bg-dark"><?= htmlspecialchars($row['payment_reference']); ?></span>
+                                        <?php elseif ($row['payment_proof']): ?>
+                                            <a href="../<?= htmlspecialchars($row['payment_proof']); ?>" target="_blank" class="btn btn-sm btn-outline-secondary">Bukti TF</a>
                                         <?php else: ?>
                                             <span class="text-muted">-</span>
                                         <?php endif; ?>

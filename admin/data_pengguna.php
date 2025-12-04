@@ -1,11 +1,8 @@
 <?php
-$conn = mysqli_connect("localhost", "root", "", "hotelmantap");
+require_once '../db.php';
+ensure_schema($koneksi);
 
-if (!$conn) {
-    die("Koneksi gagal: " . mysqli_connect_error());
-}
-
-$result = mysqli_query($conn, "SELECT * FROM pengguna ORDER BY id DESC");
+$result = $koneksi->query("SELECT id, nama, email, role FROM users ORDER BY id DESC");
 ?>
 
 <!DOCTYPE html>
@@ -63,11 +60,11 @@ $result = mysqli_query($conn, "SELECT * FROM pengguna ORDER BY id DESC");
 <!-- SIDEBAR -->
 <div class="sidebar">
     <h2>Admin Hotel</h2>
-    <a href="dashboardutama.php">Dashboard</a>
+    <a href="dash.php">Dashboard</a>
     <a href="data_pemesanan.php">Data Pemesanan</a>
     <a href="data_kamar.php">Data Kamar</a>
     <a href="data_pengguna.php">Data Pengguna</a>
-    <a href="dash.php">kembali</a>
+    <a href="../logout.php">Logout</a>
 </div>
 
 <!-- MAIN CONTENT -->
@@ -93,15 +90,15 @@ $result = mysqli_query($conn, "SELECT * FROM pengguna ORDER BY id DESC");
                 </thead>
 
                 <tbody>
-                <?php 
-                $no = 1;
-                while ($row = mysqli_fetch_assoc($result)) { ?>
+                <?php $no = 1; ?>
+                <?php if ($result && $result->num_rows > 0): ?>
+                    <?php while ($row = $result->fetch_assoc()) { ?>
                     <tr>
                         <td><?= $no++ ?></td>
                         <td><?= $row['nama'] ?></td>
                         <td><?= $row['email'] ?></td>
                         <td>
-                            <?php if ($row['level'] == 'admin') { ?>
+                            <?php if ($row['role'] == 'admin') { ?>
                                 <span class="badge bg-primary">Admin</span>
                             <?php } else { ?>
                                 <span class="badge bg-secondary">Pengguna</span>
@@ -109,13 +106,13 @@ $result = mysqli_query($conn, "SELECT * FROM pengguna ORDER BY id DESC");
                         </td>
 
                         <td>
-                            <a href="edit_pengguna.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-primary">Edit</a>
-                            <a href="hapus_pengguna.php?id=<?= $row['id'] ?>" 
-                               onclick="return confirm('Hapus pengguna ini?')"
-                               class="btn btn-sm btn-danger">Hapus</a>
+                            <span class="text-muted">Kelola user dapat dilakukan via database.</span>
                         </td>
                     </tr>
-                <?php } ?>
+                    <?php } ?>
+                <?php else: ?>
+                    <tr><td colspan="5" class="text-center text-muted">Belum ada pengguna.</td></tr>
+                <?php endif; ?>
                 </tbody>
 
             </table>

@@ -1,18 +1,20 @@
 <?php
 session_start();
-
-// Koneksi Database
-$conn = mysqli_connect("localhost", "root", "", "hotelmantap");
+require_once __DIR__ . '/db.php';
+ensure_schema($koneksi);
 
 // Proses Login
 if (isset($_POST["login"])) {
-    $email = $_POST["email"];
-    $password = $_POST["password"];
+    $email = trim($_POST["email"] ?? '');
+    $password = $_POST["password"] ?? '';
 
-    $result = mysqli_query($conn, "SELECT * FROM users WHERE email='$email'");
+    $stmt = $koneksi->prepare("SELECT id, nama, email, password, role FROM users WHERE email = ? LIMIT 1");
+    $stmt->bind_param('s', $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-    if (mysqli_num_rows($result) === 1) {
-        $row = mysqli_fetch_assoc($result);
+    if ($result && $result->num_rows === 1) {
+        $row = $result->fetch_assoc();
 
         // Verifikasi password
         if (password_verify($password, $row["password"])) {
@@ -26,7 +28,7 @@ if (isset($_POST["login"])) {
             if ($row["role"] == "admin") {
                 header("Location: admin/dash.php");
             } else {
-                header("Location: user  /user_dashboard.php");
+                header("Location: user/user_dashboard.php");
             }
             exit;
 
@@ -36,6 +38,8 @@ if (isset($_POST["login"])) {
     } else {
         $error = "Email tidak ditemukan!";
     }
+
+    $stmt->close();
 }
 ?>
 

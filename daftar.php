@@ -1,12 +1,13 @@
 <?php
 session_start();
-$conn = mysqli_connect("localhost", "root", "", "hotelmantap");
+require_once __DIR__ . '/db.php';
+ensure_schema($koneksi);
 
 if (isset($_POST["register"])) {
-    $nama = $_POST["nama"];
-    $email = $_POST["email"];
-    $password = $_POST["password"];
-    $confirm = $_POST["confirm"];
+    $nama = trim($_POST["nama"] ?? '');
+    $email = trim($_POST["email"] ?? '');
+    $password = $_POST["password"] ?? '';
+    $confirm = $_POST["confirm"] ?? '';
 
     if ($password !== $confirm) {
         $error = "Password dan konfirmasi tidak sama!";
@@ -16,19 +17,24 @@ if (isset($_POST["register"])) {
         $hash = password_hash($password, PASSWORD_DEFAULT);
 
         // Cek email sudah dipakai atau belum
-        $check = mysqli_query($conn, "SELECT * FROM users WHERE email='$email'");
-        if (mysqli_num_rows($check) > 0) {
+        $check = $koneksi->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+        $check->bind_param('s', $email);
+        $check->execute();
+        $checkResult = $check->get_result();
+
+        if ($checkResult && $checkResult->num_rows > 0) {
             $error = "Email sudah digunakan!";
         } else {
-
             // Tambah user baru (role default: user)
-            $query = "INSERT INTO users (nama, email, password, role) 
-                      VALUES ('$nama', '$email', '$hash', 'user')";
-            
-            mysqli_query($conn, $query);
+            $query = $koneksi->prepare("INSERT INTO users (nama, email, password, role) VALUES (?,?,?,'user')");
+            $query->bind_param('sss', $nama, $email, $hash);
+            $query->execute();
+            $query->close();
 
             $success = "Pendaftaran berhasil! Silakan login.";
         }
+
+        $check->close();
     }
 }
 ?>
