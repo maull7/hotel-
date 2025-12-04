@@ -42,6 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$roomData) {
         $alert = ['type' => 'danger', 'text' => 'Kamar tidak ditemukan.'];
+    } elseif (!$checkin || !$checkout || new DateTime($checkout) <= new DateTime($checkin)) {
+        $alert = ['type' => 'warning', 'text' => 'Tanggal check-in dan check-out tidak valid.'];
     } else {
         $nights = (new DateTime($checkin))->diff(new DateTime($checkout))->days;
         $totalPrice = calculate_total((int)$roomData['price'], $guests, $nights);
@@ -55,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0777, true);
             }
-            $extension = pathinfo($_FILES['payment_proof']['name'], PATHINFO_EXTENSION);
+            $extension = pathinfo($_FILES['payment_proof']['name'], PATHINFO_EXTENSION) ?: 'jpg';
             $safeName = 'bukti_' . time() . '_' . rand(1000, 9999) . '.' . $extension;
             $destination = $uploadDir . '/' . $safeName;
             if (move_uploaded_file($_FILES['payment_proof']['tmp_name'], $destination)) {
@@ -87,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $alertText = "Pemesanan berhasil disimpan untuk {$guestName}. Total pembayaran Rp " . number_format($totalPrice, 0, ',', '.');
         if ($paymentMethod === 'midtrans') {
-            $alertText .= " | Metode: Midtrans (Ref: {$paymentReference}).";
+            $alertText .= " | Metode: Midtrans (Ref: {$paymentReference}). Simulasikan pembayaran lewat Snap/Bank Redirect.";
         } else {
             $alertText .= " | Metode: Transfer Bank. Bukti pembayaran siap diverifikasi.";
         }
@@ -215,8 +217,9 @@ $bookingResult = $koneksi->query(
                 <div class="card-body">
                     <h5 class="mb-3">Pembayaran</h5>
                     <ul class="list-unstyled mb-0">
-                        <li class="mb-2"><strong>Midtrans:</strong> sistem otomatis, referensi dikirimkan setelah simpan.</li>
+                        <li class="mb-2"><strong>Midtrans:</strong> sistem otomatis, referensi dikirimkan setelah simpan. Gunakan referensi untuk uji coba sandbox.</li>
                         <li class="mb-2"><strong>Transfer Bank:</strong> upload bukti, admin akan verifikasi.</li>
+                        <li class="mb-2"><strong>Konfirmasi:</strong> status bisa dipantau lewat menu admin pada Master Pemesanan.</li>
                     </ul>
                 </div>
             </div>
@@ -239,6 +242,7 @@ $bookingResult = $koneksi->query(
                             <th>Metode</th>
                             <th>Status</th>
                             <th>Total</th>
+                            <th>Referensi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -264,10 +268,19 @@ $bookingResult = $koneksi->query(
                                         <span class="badge text-bg-<?= $badgeClass; ?> text-uppercase"><?= htmlspecialchars($booking['payment_status']); ?></span>
                                     </td>
                                     <td>Rp <?= number_format($booking['total_price'], 0, ',', '.'); ?></td>
+                                    <td>
+                                        <?php if ($booking['payment_reference']): ?>
+                                            <span class="badge text-bg-dark"><?= htmlspecialchars($booking['payment_reference']); ?></span>
+                                        <?php elseif ($booking['payment_proof']): ?>
+                                            <a href="../<?= htmlspecialchars($booking['payment_proof']); ?>" class="btn btn-sm btn-outline-secondary" target="_blank">Bukti TF</a>
+                                        <?php else: ?>
+                                            <span class="text-muted">-</span>
+                                        <?php endif; ?>
+                                    </td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
-                            <tr><td colspan="6" class="text-center text-muted">Belum ada data pemesanan</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted">Belum ada data pemesanan</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
