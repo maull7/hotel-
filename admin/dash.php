@@ -1,6 +1,9 @@
 <?php
 require '../db.php';
+require_once __DIR__ . '/../components/auth.php';
 ensure_schema($koneksi);
+
+require_login('admin');
 
 $totalRooms = $koneksi->query("SELECT COUNT(*) AS total FROM rooms")->fetch_assoc()['total'] ?? 0;
 $availableRooms = $koneksi->query("SELECT COUNT(*) AS total FROM rooms WHERE status = 'tersedia'")->fetch_assoc()['total'] ?? 0;

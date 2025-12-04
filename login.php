@@ -21,11 +21,16 @@ if (isset($_POST["login"])) {
 
             // Set session
             $_SESSION["login"] = true;
+            $_SESSION["user_id"] = (int)$row["id"];
             $_SESSION["nama"]  = $row["nama"];
+            $_SESSION["email"] = $row["email"];
             $_SESSION["role"]  = $row["role"];
 
             // Redirect berdasarkan role
-            if ($row["role"] == "admin") {
+            $redirect = $_GET['redirect'] ?? null;
+            if ($redirect) {
+                header("Location: " . $redirect);
+            } elseif ($row["role"] == "admin") {
                 header("Location: admin/dash.php");
             } else {
                 header("Location: user/user_dashboard.php");

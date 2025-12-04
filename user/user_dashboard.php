@@ -1,6 +1,12 @@
 <?php
 require_once '../db.php';
+require_once __DIR__ . '/../components/auth.php';
 ensure_schema($koneksi);
+
+require_login('user');
+$userId = (int) current_user_id();
+$userName = current_user_name();
+$userEmail = current_user_email();
 
 function fetch_rooms(mysqli $conn): array
 {
@@ -66,11 +72,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $stmt = $koneksi->prepare(
-            "INSERT INTO bookings (guest_name, email, phone, room_id, checkin, checkout, guests, total_price, payment_method, payment_status, payment_reference, payment_proof)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO bookings (user_id, guest_name, email, phone, room_id, checkin, checkout, guests, total_price, payment_method, payment_status, payment_reference, payment_proof)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $stmt->bind_param(
-            'sssississsss',
+            'isssississssss',
+            $userId,
             $guestName,
             $email,
             $phone,
@@ -101,8 +108,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $bookingResult = $koneksi->query(
     "SELECT b.*, r.name AS room_name, r.type AS room_type FROM bookings b
      JOIN rooms r ON r.id = b.room_id
+     WHERE b.user_id = {$userId}
      ORDER BY b.created_at DESC LIMIT 10"
 );
+$bookings = $bookingResult ? $bookingResult->fetch_all(MYSQLI_ASSOC) : [];
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -117,7 +126,7 @@ $bookingResult = $koneksi->query(
     <div class="container">
         <a class="navbar-brand fw-bold" href="#">HotelMantap</a>
         <div class="d-flex gap-2">
-            <a href="../login.php" class="btn btn-outline-light btn-sm">Login Admin</a>
+            <span class="text-white fw-semibold">Halo, <?= htmlspecialchars($userName); ?></span>
             <a href="../logout.php" class="btn btn-light btn-sm text-primary">Logout</a>
         </div>
     </div>
@@ -143,11 +152,11 @@ $bookingResult = $koneksi->query(
                     <form method="post" enctype="multipart/form-data" class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Nama Tamu</label>
-                            <input type="text" name="nama" class="form-control" required>
+                            <input type="text" name="nama" class="form-control" value="<?= htmlspecialchars($userName); ?>" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Email</label>
-                            <input type="email" name="email" class="form-control" required>
+                            <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($userEmail); ?>" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Nomor Telepon</label>
@@ -216,11 +225,19 @@ $bookingResult = $koneksi->query(
             <div class="card shadow-sm">
                 <div class="card-body">
                     <h5 class="mb-3">Pembayaran</h5>
-                    <ul class="list-unstyled mb-0">
+                    <ul class="list-unstyled mb-3">
                         <li class="mb-2"><strong>Midtrans:</strong> sistem otomatis, referensi dikirimkan setelah simpan. Gunakan referensi untuk uji coba sandbox.</li>
                         <li class="mb-2"><strong>Transfer Bank:</strong> upload bukti, admin akan verifikasi.</li>
                         <li class="mb-2"><strong>Konfirmasi:</strong> status bisa dipantau lewat menu admin pada Master Pemesanan.</li>
                     </ul>
+                    <div class="alert alert-info mb-0">
+                        <strong>Langkah verifikasi Midtrans:</strong>
+                        <ol class="mb-0 mt-2 small">
+                            <li>Pilih metode pembayaran <em>Midtrans</em> saat menyimpan pesanan.</li>
+                            <li>Catat kode referensi otomatis (contoh: <code>MID-XXXXXX</code>).</li>
+                            <li>Buka menu Admin &raquo; Data Pemesanan, lalu gunakan panel <strong>Simulasi Midtrans</strong> untuk menandai pembayaran sukses/gagal sesuai kode referensi.</li>
+                        </ol>
+                    </div>
                 </div>
             </div>
         </div>
@@ -246,8 +263,8 @@ $bookingResult = $koneksi->query(
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if ($bookingResult && $bookingResult->num_rows > 0): ?>
-                            <?php while ($booking = $bookingResult->fetch_assoc()): ?>
+                        <?php if (count($bookings) > 0): ?>
+                            <?php foreach ($bookings as $booking): ?>
                                 <tr>
                                     <td>
                                         <strong><?= htmlspecialchars($booking['guest_name']); ?></strong><br>
@@ -278,7 +295,7 @@ $bookingResult = $koneksi->query(
                                         <?php endif; ?>
                                     </td>
                                 </tr>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         <?php else: ?>
                             <tr><td colspan="7" class="text-center text-muted">Belum ada data pemesanan</td></tr>
                         <?php endif; ?>

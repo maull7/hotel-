@@ -37,6 +37,7 @@ function ensure_schema(mysqli $conn): void
     $conn->query(
         "CREATE TABLE IF NOT EXISTS bookings (
             id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NULL,
             guest_name VARCHAR(120) NOT NULL,
             email VARCHAR(120) NOT NULL,
             phone VARCHAR(40) NOT NULL,
@@ -50,9 +51,26 @@ function ensure_schema(mysqli $conn): void
             payment_reference VARCHAR(120) DEFAULT NULL,
             payment_proof VARCHAR(255) DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
             FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
     );
+
+    // Tambahkan kolom user_id jika database sudah terlanjur dibuat tanpa kolom tersebut
+    $userIdColumn = $conn->query("SHOW COLUMNS FROM bookings LIKE 'user_id'");
+    if ($userIdColumn && $userIdColumn->num_rows === 0) {
+        $conn->query("ALTER TABLE bookings ADD COLUMN user_id INT NULL AFTER id");
+    }
+
+    // Pastikan relasi ke tabel users tersedia
+    $fkCheck = $conn->query(
+        "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE ".
+        "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'bookings' AND COLUMN_NAME = 'user_id' ".
+        "AND REFERENCED_TABLE_NAME = 'users' LIMIT 1"
+    );
+    if ($fkCheck && $fkCheck->num_rows === 0) {
+        $conn->query("ALTER TABLE bookings ADD CONSTRAINT fk_bookings_users FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL");
+    }
 
     $uploadDir = __DIR__ . '/uploads/payments';
     if (!is_dir($uploadDir)) {

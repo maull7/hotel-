@@ -20,8 +20,8 @@ $availableStat = $koneksi->query("SELECT COUNT(*) AS total FROM rooms WHERE stat
     <div class="container">
         <a class="navbar-brand fw-bold" href="#">HotelMantap</a>
         <div class="d-flex gap-2">
-            <a href="user/user_dashboard.php" class="btn btn-outline-light btn-sm">Mulai Booking</a>
-            <a href="login.php" class="btn btn-light btn-sm text-primary">Login Admin</a>
+            <a href="daftar.php" class="btn btn-outline-light btn-sm">Daftar</a>
+            <a href="login.php" class="btn btn-light btn-sm text-primary">Login</a>
         </div>
     </div>
 </nav>
@@ -30,11 +30,11 @@ $availableStat = $koneksi->query("SELECT COUNT(*) AS total FROM rooms WHERE stat
     <div class="container">
         <div class="row align-items-center g-4">
             <div class="col-lg-7">
-                <h1 class="fw-bold mb-3">Sewa kamar hotel lebih mudah</h1>
-                <p class="text-muted mb-4">Kelola master kamar, simpan pemesanan, dan pilih pembayaran Midtrans atau transfer bank dengan bukti.</p>
+                <h1 class="fw-bold mb-3">Landing page reservasi HotelMantap</h1>
+                <p class="text-muted mb-4">Jelajahi kamar dan pembayaran yang tersedia. Untuk melakukan pemesanan, registrasi dan login terlebih dahulu agar setiap transaksi tercatat ke akun.</p>
                 <div class="d-flex gap-2">
-                    <a href="user/user_dashboard.php" class="btn btn-primary btn-lg">Pesan Sekarang</a>
-                    <a href="admin/dash.php" class="btn btn-outline-secondary btn-lg">Dashboard Admin</a>
+                    <a href="daftar.php" class="btn btn-primary btn-lg">Daftar &amp; Pesan</a>
+                    <a href="login.php" class="btn btn-outline-secondary btn-lg">Masuk</a>
                 </div>
             </div>
             <div class="col-lg-5">
